@@ -86,6 +86,16 @@ for i in range(count):
         im=image.shape
         w= int(im[1])
         h= int(im[0])
+        
+        if x0 < 0:
+            x0 = 0
+        if x1> w:
+            x1 = w
+        if y0 < 0:
+            y0 = 0
+        if y1 > h:
+            y1 = h
+            
         b = (x0, x1, y0, y1)
         bb = convert((w,h), b)
         yolobox.append(bb)
