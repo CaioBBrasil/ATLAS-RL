@@ -1,3 +1,4 @@
+import time as tm
 import airsim
 import os
 import tempfile
@@ -5,6 +6,7 @@ import numpy as np
 import random as rd
 import json
 
+tempo = tm.time()
 #Correction of a bug that input twice
 def cBug1():
     airsim.wait_key()
@@ -17,17 +19,14 @@ IS_EXTERNAL_CAM = True
 typePose= 0
 interaction = 0
 
-listCarPosition = []
-listCameraPosition = []
-listFov = []
 
 #starting the conection with airsim
 client = airsim.VehicleClient()
 client.confirmConnection()
 
 #Making the path to store the pictures
-tmp_dir = os.path.join(tempfile.gettempdir(), "airsim_cv_mode")
-print ("Saving images t %s" % tmp_dir)
+tmp_dir = '/home/team-drone/Área de Trabalho/Drone/Codigos Test/datasetcarro/images/'
+
 try:
     os.makedirs(tmp_dir)
 except OSError:
@@ -42,25 +41,26 @@ cBug1()
 requests = [airsim.ImageRequest(CAM_NAME, airsim.ImageType.Scene)]
 
 #starting takng pictures
-while interaction < 1000:
-    print(interaction)
+while interaction < 3000:
+    
     #getting the pose of the car and spliting in position and orientation
-    objectPose = client.simGetObjectPose("carro")
+    objectPose = client.simGetObjectPose("carru")
     objectPosition = objectPose.position
     objectOrientation = objectPose.orientation
-
     #correction factor of car's z_val
     objectZajust = objectPosition.z_val - 1.012
 
     #Puting the camera close to the car
     
-    x = objectPosition.x_val + 3
-    y = objectPosition.y_val 
+    x = objectPosition.x_val + 4
+    y = objectPosition.y_val  + 4
 
     #Defining the camera's position
-    a = 2 + (2*rd.random())
-    positions = [(x, y, 0), (x, y + a, 0), (x-a, y+6, 0), (x -6 -a, y+6, 0), (x - 12, y + a, 0), (x - 12, y - a, 0), (x -6 -a, y-6, 0), (x, y-a, 0),
-                 (x, y, -a), (x, y + a, -a), (x-a, y+6, -a), (x -6 -a, y+6, -a), (x - 12, y + a, -a), (x - 12, y - a, -a), (x -6 -a, y-6, -a), (x, y-a, -a)]
+    b1 = 4*rd.random() - 2
+    b2 = 4*rd.random() - 2 
+    a = 2 + (2*rd.random()) - objectZajust
+    positions = [(x + b1, y + b2 , objectZajust), (x - (8 + b1), y+ b2 , objectZajust), (x - (8 + b1), y - (8 + b2), objectZajust), (x  + b1, y -(8 + b2), objectZajust),
+                 (x + b1, y + b2 , -a), (x - (8 + b1), y+ b2, -a), (x - (8 + b1), y - (8 + b2), -a), (x  + b1, y -(8 + b2), -a)]
 
     filename = os.path.join(tmp_dir,'image' + "_" + str(interaction))
     
@@ -76,56 +76,38 @@ while interaction < 1000:
 
     #Adjusting the camera pitch if it is higher than the car
     if z_rel < -2:
-        pitch = -np.arctan(-z_rel/np.sqrt((x_rel**2)+(y_rel)**2))
-        
+        pitch = -np.arctan(-z_rel/np.sqrt((x_rel**2)+(y_rel)**2))    
     else:
          pitch = 0
 
-    #Adjusting the camera yaw according to quadrant     
-    if x_rel >= 0 and y_rel >= 0:
-        yaw = np.arctan((y_rel)/(x_rel))
-        yaw = np.pi + yaw
 
-    elif x_rel < 0 and y_rel > 0:
-        yaw = np.arctan((y_rel)/(-x_rel))
-        yaw = -yaw
+    #Adjusting the camera yaw to focus on car    
+    yaw = np.arctan((y_rel)/(x_rel))
+    if x_rel > 0:
+         yaw = np.pi + yaw
     
-    elif x_rel < 0 and y_rel < 0:
-        yaw = np.arctan((-y_rel)/(-x_rel))
-
-    elif x_rel > 0 and y_rel < 0:
-         yaw = np.arctan((-y_rel)/(x_rel))
-         yaw = np.pi-yaw
-
-    else:
-         yaw = 0
-    
-    shouldSeeyaw = yaw
-    shouldSeeyawpitch = pitch
     yaw = yaw + auxAngYaw[auxAngYawInd]
     pitch = pitch + auxAngPitch[auxAngIndPitch]
-    #distance = np.sqrt((x_rel**2)+(y_rel**2)+(z_rel**2))
-    #nfov = 270/distance
-    #client.simSetCameraFov("fixed1",nfov,external=True)
-    fov = client.simGetCameraInfo('fixed1', external=True)
     
  
     dictInformation = { "car_position" : [objectPosition.x_val, objectPosition.y_val, objectPosition.z_val],
-                        "camera_position": positions[typePose] , "camera_fov" : fov.fov, "diffYaw" :auxAngYaw[auxAngYawInd], 
+                        "camera_position": positions[typePose], "diffYaw" :auxAngYaw[auxAngYawInd], 
                         "diffPitch": auxAngPitch[auxAngIndPitch]}
     
 
-    jsonString = json.dumps(dictInformation, indent=7)
+    jsonString = json.dumps(dictInformation, indent=6)
 
-    with open("/home/caio/Documents/Drone/Codes/dataJson/data"+str(interaction)+".json", "w") as jsonFile:
+    with open("/home/team-drone/Área de Trabalho/Drone/Codigos Test/dataJsoncarro/data"+str(interaction)+".json", "w") as jsonFile:
     #start procedure
         jsonFile.write(jsonString)
         jsonFile.close
 
     #setting the new camera's pose
-    npose = airsim.Pose(position_val=airsim.Vector3r(positions[typePose][0], positions[typePose][1], positions[typePose][2] ), orientation_val=airsim.to_quaternion(pitch, 0, yaw ))
-    client.simSetCameraPose(camera_name=CAM_NAME, pose=npose, external=IS_EXTERNAL_CAM)
+    npose = airsim.Pose(position_val=airsim.Vector3r(positions[typePose][0], positions[typePose][1], positions[typePose][2] ),
+                         orientation_val=airsim.to_quaternion(pitch, 0, yaw ))
     
+    
+    client.simSetCameraPose(camera_name=CAM_NAME, pose=npose, external=IS_EXTERNAL_CAM)
     #getting the pictures
     responses = client.simGetImages(requests, external=IS_EXTERNAL_CAM)
     for i, response in enumerate(responses):
@@ -136,9 +118,9 @@ while interaction < 1000:
     
     #adjust to the next type of camera's position
     typePose = typePose+1
-    if typePose >= 16:
+    if typePose >= 8:
          typePose = 0
     
     interaction = interaction + 1
 
-#Angulos estao em radiano
+print(tm.time() - tempo)

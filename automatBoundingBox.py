@@ -4,6 +4,7 @@ import tempfile
 import json
 import cv2
 
+#hfunction to get the yolo format
 def convert(size, box):
     dw = 1./size[0]
     dh = 1./size[1]
@@ -20,13 +21,13 @@ def convert(size, box):
 yolobox = []
 count = 0
 #counting the numbers of photos
-for root_dir, cur_dir, files in os.walk("/home/caio/Documents/Drone/Codes/dataJson"):
+for root_dir, cur_dir, files in os.walk("//home/team-drone/Área de Trabalho/Drone/Codigos Test/dataJsoncarro"):
     count += len(files)
 
 #Generating the bounding box for each photo 
 for i in range(count):
     #getting the photo's information
-    file = "/home/caio/Documents/Drone/Codes/dataJson/data" + str(i) + ".json"
+    file = "/home/team-drone/Área de Trabalho/Drone/Codigos Test/dataJsoncarro/data" + str(i) + ".json"
     a = open(file, 'r')
     ajson = json.load(a)
 
@@ -43,17 +44,30 @@ for i in range(count):
     #deffining a central point for the bounding box
     midX = 130
     midY = 80
-
-    #deffining a proportional width and heigh using the distance Camera-car as base
-    width = 80 * 6.122 / distanceCC 
-    heigh = 50 *6.122/ distanceCC
-
-    #Calculating the correction factor for the bounding box centralize the car 
-    if distanceCC > 8:
-        correctBB_X = (23*6.122/distanceCC)*np.sqrt(2*(distanceCC**2) - (2*(distanceCC**2)*np.cos(np.abs(angYaw))))
+    
+    if z_rel > 4 and np.abs(y_rel) < 4:
+        modo = 2
     else:
-        correctBB_X = (18*6.122/distanceCC)*np.sqrt(2*(distanceCC**2) - (2*(distanceCC**2)*np.cos(np.abs(angYaw))))
-    correctBB_Y = 12*np.sqrt(2*(distanceCC**2) - (2*(distanceCC**2)*np.cos(np.abs(angPitch))))
+        modo = 1
+
+    if i == 6:
+        print(distanceCC)
+    if modo == 2:
+        heigh = 95 * 6.122 / distanceCC 
+        width = 75 *6.122/ distanceCC
+        correctBB_X = 15*np.sqrt(2*(distanceCC**2) - (2*(distanceCC**2)*np.cos(angYaw)))
+        correctBB_Y = 20*np.sqrt(2*(distanceCC**2) - (2*(distanceCC**2)*np.cos(angPitch)))
+     
+
+    else:
+        #deffining a proportional width and heigh using the distance Camera-car as base
+        width = 95 * 6.122 / distanceCC 
+        heigh = 65 *6.122/ distanceCC
+
+        #Calculating the correction factor for the bounding box centralize the car 
+        
+        correctBB_X = (15 * 7.10 / distanceCC)*np.sqrt(2*(distanceCC**2) - (2*(distanceCC**2)*np.cos(angYaw)))
+        correctBB_Y = (12 * 7.10/distanceCC)*np.sqrt(2*(distanceCC**2) - (2*(distanceCC**2)*np.cos(angPitch)))
 
     #analysing if the car is more left or more right in the photo
     if angYaw < 0:
@@ -68,14 +82,14 @@ for i in range(count):
         midY = midY + correctBB_Y
 
     #generating the photos with the bounding box
-    tmp_dir = os.path.join(tempfile.gettempdir(), "airsim_cv_mode")
+    tmp_dir = '/home/team-drone/Área de Trabalho/Drone/Codigos Test/datasetcarro/images/'
     picture = os.path.join(tmp_dir,'image' + "_" + str(i)+".png")
-    saveDir = os.path.join("/home/caio/Desktop/test/",'imageBB' + "_" + str(i)+".png")
+    saveDir = os.path.join("/home/team-drone/Área de Trabalho/Drone/Codigos Test/fotosBBcarro/",'imageBB' + "_" + str(i)+".png")
     
     image = cv2.imread(picture)
 
     predictions = {'predictions': [{'x': midX, 'y': midY, 'width': width, 'height': heigh, 
-                                    'confidence': 0.7369905710220337, 'class': 'Paper', 'image_path': 'example.jpg', 'prediction_type': 'ObjectDetectionModel'}], 'image': {'width': 1436, 'height': 956}}
+                                    'confidence': 0.7369905710220337}]}
     aux = 0
     for bounding_box in predictions["predictions"]:
         x0 = bounding_box['x'] - bounding_box['width'] / 2
@@ -86,6 +100,15 @@ for i in range(count):
         im=image.shape
         w= int(im[1])
         h= int(im[0])
+
+        if x0 < 0:
+            x0 = 0
+        elif x1> w:
+            x1 = w
+        if y0 < 0:
+            y0 = 0
+        elif y1 > h:
+            y1 = h
         b = (x0, x1, y0, y1)
         bb = convert((w,h), b)
         yolobox.append(bb)
@@ -94,7 +117,7 @@ for i in range(count):
         end_point = (int(x1), int(y1))
         cv2.rectangle(image, start_point, end_point, color=(255,0,0), thickness=2)
 
-        yolofile = open("/home/caio/Documents/Drone/Codes/yoloData/imageBB" + "_" + str(i) + ".txt", 'w+')
+        yolofile = open("/home/team-drone/Área de Trabalho/Drone/Codigos Test/datasetcarro/labels/image" + "_" + str(i) + ".txt", 'w+')
         txt =str(1) + " " + str(yolobox[i][0]) + " " + str(yolobox[i][1]) + " " + str(yolobox[i][2]) + " " + str(yolobox[i][3])
         yolofile.write(txt)
         yolofile.close()
